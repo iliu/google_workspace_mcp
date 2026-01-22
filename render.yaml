@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: workspace-mcp
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      # Required secrets (set in Render dashboard)
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
+      # Stateless OAuth 2.1 mode
+      - key: MCP_ENABLE_OAUTH21
+        value: "true"
+      - key: WORKSPACE_MCP_STATELESS_MODE
+        value: "true"
+      # Public URL configuration (set to your *.onrender.com URL)
+      - key: WORKSPACE_EXTERNAL_URL
+        sync: false
+      - key: GOOGLE_OAUTH_REDIRECT_URI
+        sync: false
+      # Optional tool scoping
+      - key: TOOL_TIER
+        sync: false
+      - key: TOOLS
+        sync: false

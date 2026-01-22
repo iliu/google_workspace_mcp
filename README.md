@@ -540,6 +540,23 @@ docker run -e TOOL_TIER=core workspace-mcp
 docker run -e TOOLS="gmail drive calendar" workspace-mcp
 ```
 
+**◆ Render (Stateless, Docker)**
+```bash
+# 1) Add the included render.yaml to your repo and create a Render Blueprint
+# 2) In Render, set these environment variables:
+#    GOOGLE_OAUTH_CLIENT_ID
+#    GOOGLE_OAUTH_CLIENT_SECRET
+#    WORKSPACE_EXTERNAL_URL=https://<service>.onrender.com
+#    GOOGLE_OAUTH_REDIRECT_URI=https://<service>.onrender.com/oauth2callback
+# Optional:
+#    TOOL_TIER=core | extended | complete
+#    TOOLS="gmail drive calendar"
+```
+**Notes**
+<span style="color:#72898f">▶</span> Stateless mode is enabled in `render.yaml` (`MCP_ENABLE_OAUTH21=true` + `WORKSPACE_MCP_STATELESS_MODE=true`)  
+<span style="color:#72898f">▶</span> Each request must include a valid OAuth 2.1 bearer token  
+<span style="color:#72898f">▶</span> Set the public URL values explicitly (e.g., `https://<service>.onrender.com`)
+
 **Available Services**: `gmail` • `drive` • `calendar` • `docs` • `sheets` • `forms` • `tasks` • `chat` • `search`
 
 </details>

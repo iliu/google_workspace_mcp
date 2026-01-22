@@ -304,6 +304,25 @@ docker run -p 8000:8000 \
   workspace-mcp --transport streamable-http
 ```
 
+### Render (Stateless, Docker)
+
+This repo includes a `render.yaml` for a stateless OAuth 2.1 deployment.
+
+**Set these in Render:**
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `WORKSPACE_EXTERNAL_URL=https://<service>.onrender.com`
+- `GOOGLE_OAUTH_REDIRECT_URI=https://<service>.onrender.com/oauth2callback`
+
+**Optional:**
+- `TOOL_TIER=core|extended|complete`
+- `TOOLS="gmail drive calendar"`
+
+**Notes:**
+- Stateless mode requires OAuth 2.1 (`MCP_ENABLE_OAUTH21=true` and `WORKSPACE_MCP_STATELESS_MODE=true`)
+- Each request must include a valid OAuth 2.1 bearer token
+- Set the public URL values explicitly in Render (e.g., `https://<service>.onrender.com`)
+
 ---
 
 ## 🔧 Client Configuration
