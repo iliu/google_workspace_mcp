@@ -71,6 +71,7 @@ class AuthInfoMiddleware(Middleware):
             logger.warning("No fastmcp_context available")
             return
         debug_auth = _debug_auth_enabled()
+        fallback_user = os.getenv("WORKSPACE_MCP_OAUTH21_DEFAULT_USER", "").strip() or None
 
         # Return early if authentication state is already set
         if context.fastmcp_context.get_state("authenticated_user_email"):
@@ -406,6 +407,10 @@ class AuthInfoMiddleware(Middleware):
                                 context.fastmcp_context.set_state(
                                     "authenticated_via", "jwt_token"
                                 )
+                            elif debug_auth:
+                                logger.info(
+                                    "[AUTH-DEBUG] jwt_no_user_identity=true"
+                                )
 
                             logger.debug("JWT token processed successfully")
 
@@ -419,6 +424,75 @@ class AuthInfoMiddleware(Middleware):
                                 logger.info(
                                     "[AUTH-DEBUG] jwt_decode_error=%s",
                                     type(e).__name__,
+                                )
+
+                        # If no authenticated user found, attempt provider cache lookup
+                        if not context.fastmcp_context.get_state(
+                            "authenticated_user_email"
+                        ):
+                            try:
+                                from core.server import get_auth_provider
+
+                                auth_provider = get_auth_provider()
+                                access_record = None
+                                if auth_provider:
+                                    access_record = getattr(
+                                        auth_provider, "_access_tokens", {}
+                                    ).get(token_str)
+
+                                if access_record:
+                                    claims = getattr(access_record, "claims", {}) or {}
+                                    user_email = (
+                                        claims.get("email")
+                                        or getattr(access_record, "email", None)
+                                        or claims.get("user_email")
+                                        or claims.get("preferred_username")
+                                        or claims.get("sub")
+                                    )
+                                    if user_email:
+                                        context.fastmcp_context.set_state(
+                                            "authenticated_user_email", user_email
+                                        )
+                                        context.fastmcp_context.set_state(
+                                            "authenticated_via", "provider_cache"
+                                        )
+                                        if debug_auth:
+                                            logger.info(
+                                                "[AUTH-DEBUG] provider_cache_user=%s",
+                                                _mask_email(user_email),
+                                            )
+                                    elif debug_auth:
+                                        logger.info(
+                                            "[AUTH-DEBUG] provider_cache_user=none"
+                                        )
+                                elif debug_auth:
+                                    logger.info(
+                                        "[AUTH-DEBUG] provider_cache_hit=false"
+                                    )
+                            except Exception as e:
+                                if debug_auth:
+                                    logger.info(
+                                        "[AUTH-DEBUG] provider_cache_error=%s",
+                                        type(e).__name__,
+                                    )
+
+                        # If still no authenticated user, apply single-user fallback
+                        if (
+                            not context.fastmcp_context.get_state(
+                                "authenticated_user_email"
+                            )
+                            and fallback_user
+                        ):
+                            context.fastmcp_context.set_state(
+                                "authenticated_user_email", fallback_user
+                            )
+                            context.fastmcp_context.set_state(
+                                "authenticated_via", "oauth21_default_user"
+                            )
+                            if debug_auth:
+                                logger.info(
+                                    "[AUTH-DEBUG] oauth21_default_user=%s",
+                                    _mask_email(fallback_user),
                                 )
                 else:
                     logger.debug("No Bearer token in Authorization header")

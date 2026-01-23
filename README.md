@@ -548,6 +548,8 @@ docker run -e TOOLS="gmail drive calendar" workspace-mcp
 #    GOOGLE_OAUTH_CLIENT_SECRET
 #    WORKSPACE_EXTERNAL_URL=https://<service>.onrender.com
 #    GOOGLE_OAUTH_REDIRECT_URI=https://<service>.onrender.com/oauth2callback
+# Optional single-user fallback (OAuth 2.1 only, use with caution):
+#    WORKSPACE_MCP_OAUTH21_DEFAULT_USER=you@example.com
 # Optional:
 #    TOOL_TIER=core | extended | complete
 #    TOOLS="gmail drive calendar"
@@ -556,6 +558,7 @@ docker run -e TOOLS="gmail drive calendar" workspace-mcp
 <span style="color:#72898f">▶</span> Stateless mode is enabled in `render.yaml` (`MCP_ENABLE_OAUTH21=true` + `WORKSPACE_MCP_STATELESS_MODE=true`)  
 <span style="color:#72898f">▶</span> Each request must include a valid OAuth 2.1 bearer token  
 <span style="color:#72898f">▶</span> Set the public URL values explicitly (e.g., `https://<service>.onrender.com`)
+<span style="color:#72898f">▶</span> `WORKSPACE_MCP_OAUTH21_DEFAULT_USER` forces a single Google account for all requests; do not use in multi-user setups
 
 **Available Services**: `gmail` • `drive` • `calendar` • `docs` • `sheets` • `forms` • `tasks` • `chat` • `search`
 

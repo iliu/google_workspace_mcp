@@ -315,6 +315,7 @@ This repo includes a `render.yaml` for a stateless OAuth 2.1 deployment.
 - `GOOGLE_OAUTH_REDIRECT_URI=https://<service>.onrender.com/oauth2callback`
 
 **Optional:**
+- `WORKSPACE_MCP_OAUTH21_DEFAULT_USER=you@example.com` (forces a single-user fallback)
 - `TOOL_TIER=core|extended|complete`
 - `TOOLS="gmail drive calendar"`
 
@@ -322,6 +323,7 @@ This repo includes a `render.yaml` for a stateless OAuth 2.1 deployment.
 - Stateless mode requires OAuth 2.1 (`MCP_ENABLE_OAUTH21=true` and `WORKSPACE_MCP_STATELESS_MODE=true`)
 - Each request must include a valid OAuth 2.1 bearer token
 - Set the public URL values explicitly in Render (e.g., `https://<service>.onrender.com`)
+- `WORKSPACE_MCP_OAUTH21_DEFAULT_USER` should only be used for single-user deployments
 
 ---
 
