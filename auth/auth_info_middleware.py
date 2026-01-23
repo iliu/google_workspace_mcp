@@ -90,6 +90,17 @@ class AuthInfoMiddleware(Middleware):
                 if auth_header.startswith("Bearer "):
                     token_str = auth_header[7:]  # Remove "Bearer " prefix
                     logger.debug("Found Bearer token")
+                    if debug_auth:
+                        token_kind = (
+                            "google_access"
+                            if token_str.startswith("ya29.")
+                            else "jwt_or_unknown"
+                        )
+                        logger.info(
+                            "[AUTH-DEBUG] bearer_token_type=%s token_len=%s",
+                            token_kind,
+                            len(token_str),
+                        )
 
                     # For Google OAuth tokens (ya29.*), we need to verify them differently
                     if token_str.startswith("ya29."):
@@ -111,6 +122,19 @@ class AuthInfoMiddleware(Middleware):
                                     user_email = None
                                     if hasattr(verified_auth, "claims"):
                                         user_email = verified_auth.claims.get("email")
+                                        if debug_auth:
+                                            claim_keys = list(
+                                                verified_auth.claims.keys()
+                                            )
+                                            logger.info(
+                                                "[AUTH-DEBUG] google_verify_ok=true claims_keys_count=%s email_present=%s",
+                                                len(claim_keys),
+                                                bool(user_email),
+                                            )
+                                    elif debug_auth:
+                                        logger.info(
+                                            "[AUTH-DEBUG] google_verify_ok=true claims_keys_count=0 email_present=false"
+                                        )
 
                                     # Get expires_at, defaulting to 1 hour from now if not available
                                     if hasattr(verified_auth, "expires_at"):
@@ -181,9 +205,18 @@ class AuthInfoMiddleware(Middleware):
                                     )
                                 else:
                                     logger.error("Failed to verify Google OAuth token")
+                                    if debug_auth:
+                                        logger.info(
+                                            "[AUTH-DEBUG] google_verify_ok=false"
+                                        )
                                 # Don't set authenticated_user_email if verification failed
                             except Exception as e:
                                 logger.error(f"Error verifying Google OAuth token: {e}")
+                                if debug_auth:
+                                    logger.info(
+                                        "[AUTH-DEBUG] google_verify_error=%s",
+                                        type(e).__name__,
+                                    )
                                 # Still store the unverified token - service decorator will handle verification
                                 access_token = SimpleNamespace(
                                     token=token_str,
@@ -239,6 +272,19 @@ class AuthInfoMiddleware(Middleware):
                             logger.debug(
                                 f"JWT payload decoded: {list(token_payload.keys())}"
                             )
+                            if debug_auth:
+                                claim_keys = list(token_payload.keys())
+                                has_email = bool(
+                                    token_payload.get("email")
+                                    or token_payload.get("username")
+                                )
+                                has_sub = bool(token_payload.get("sub"))
+                                logger.info(
+                                    "[AUTH-DEBUG] jwt_claims_count=%s email_present=%s sub_present=%s",
+                                    len(claim_keys),
+                                    has_email,
+                                    has_sub,
+                                )
 
                             # Create an AccessToken-like object
                             access_token = SimpleNamespace(
@@ -307,8 +353,15 @@ class AuthInfoMiddleware(Middleware):
 
                         except jwt.DecodeError as e:
                             logger.error(f"Failed to decode JWT: {e}")
+                            if debug_auth:
+                                logger.info("[AUTH-DEBUG] jwt_decode_ok=false")
                         except Exception as e:
                             logger.error(f"Error processing JWT: {e}")
+                            if debug_auth:
+                                logger.info(
+                                    "[AUTH-DEBUG] jwt_decode_error=%s",
+                                    type(e).__name__,
+                                )
                 else:
                     logger.debug("No Bearer token in Authorization header")
             else:
