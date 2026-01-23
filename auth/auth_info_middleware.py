@@ -14,6 +14,22 @@ from auth.oauth21_session_store import ensure_session_from_access_token
 
 # Configure logging
 logger = logging.getLogger(__name__)
+_DEBUG_AUTH_ENV = "WORKSPACE_MCP_DEBUG_AUTH"
+
+
+def _debug_auth_enabled() -> bool:
+    return os.getenv(_DEBUG_AUTH_ENV, "").strip().lower() == "true"
+
+
+def _mask_email(email: str | None) -> str:
+    if not email or "@" not in email:
+        return "none"
+    local, domain = email.split("@", 1)
+    if len(local) <= 2:
+        masked_local = f"{local[:1]}{'*' * max(len(local) - 1, 0)}"
+    else:
+        masked_local = f"{local[:2]}{'*' * (len(local) - 2)}"
+    return f"{masked_local}@{domain}"
 
 
 class AuthInfoMiddleware(Middleware):
@@ -31,9 +47,23 @@ class AuthInfoMiddleware(Middleware):
         if not context.fastmcp_context:
             logger.warning("No fastmcp_context available")
             return
+        debug_auth = _debug_auth_enabled()
 
         # Return early if authentication state is already set
         if context.fastmcp_context.get_state("authenticated_user_email"):
+            if debug_auth:
+                authenticated_user = context.fastmcp_context.get_state(
+                    "authenticated_user_email"
+                )
+                auth_via = context.fastmcp_context.get_state("authenticated_via")
+                session_id = getattr(context.fastmcp_context, "session_id", None)
+                session_short = session_id[:8] if session_id else "none"
+                logger.info(
+                    "[AUTH-DEBUG] auth_already_set=true user=%s via=%s session=%s",
+                    _mask_email(authenticated_user),
+                    auth_via or "none",
+                    session_short,
+                )
             logger.info("Authentication state already set.")
             return
 
@@ -46,6 +76,17 @@ class AuthInfoMiddleware(Middleware):
 
                 # Get the Authorization header
                 auth_header = headers.get("authorization", "")
+                if not auth_header:
+                    auth_header = headers.get("Authorization", "")
+                if debug_auth:
+                    has_auth_header = bool(auth_header)
+                    has_bearer = auth_header.lower().startswith("bearer ")
+                    logger.info(
+                        "[AUTH-DEBUG] headers_present=true auth_header_present=%s bearer=%s auth_header_len=%s",
+                        has_auth_header,
+                        has_bearer,
+                        len(auth_header) if has_auth_header else 0,
+                    )
                 if auth_header.startswith("Bearer "):
                     token_str = auth_header[7:]  # Remove "Bearer " prefix
                     logger.debug("Found Bearer token")
@@ -274,8 +315,12 @@ class AuthInfoMiddleware(Middleware):
                 logger.debug(
                     "No HTTP headers available (might be using stdio transport)"
                 )
+                if debug_auth:
+                    logger.info("[AUTH-DEBUG] headers_present=false")
         except Exception as e:
             logger.debug(f"Could not get HTTP request: {e}")
+            if debug_auth:
+                logger.info("[AUTH-DEBUG] headers_present=error")
 
         # After trying HTTP headers, check for other authentication methods
         # This consolidates all authentication logic in the middleware
@@ -379,6 +424,19 @@ class AuthInfoMiddleware(Middleware):
                             )
                     except Exception as e:
                         logger.debug(f"Error checking MCP session binding: {e}")
+        if debug_auth:
+            authenticated_user = context.fastmcp_context.get_state(
+                "authenticated_user_email"
+            )
+            auth_via = context.fastmcp_context.get_state("authenticated_via")
+            session_id = getattr(context.fastmcp_context, "session_id", None)
+            session_short = session_id[:8] if session_id else "none"
+            logger.info(
+                "[AUTH-DEBUG] auth_result user=%s via=%s session=%s",
+                _mask_email(authenticated_user),
+                auth_via or "none",
+                session_short,
+            )
 
     async def on_call_tool(self, context: MiddlewareContext, call_next):
         """Extract auth info from token and set in context state"""
