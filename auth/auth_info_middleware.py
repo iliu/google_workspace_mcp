@@ -6,6 +6,7 @@ import jwt
 import logging
 import os
 import time
+import hashlib
 from types import SimpleNamespace
 from fastmcp.server.middleware import Middleware, MiddlewareContext
 from fastmcp.server.dependencies import get_http_headers
@@ -30,6 +31,28 @@ def _mask_email(email: str | None) -> str:
     else:
         masked_local = f"{local[:2]}{'*' * (len(local) - 2)}"
     return f"{masked_local}@{domain}"
+
+
+def _hash_preview(value: str | None, length: int = 8) -> str:
+    if not value:
+        return "none"
+    digest = hashlib.sha256(value.encode("utf-8")).hexdigest()
+    return digest[:length]
+
+
+def _truncate(value: str | None, length: int = 24) -> str:
+    if not value:
+        return "none"
+    return value if len(value) <= length else f"{value[:length]}..."
+
+
+def _scope_preview(scope_value: str | None, length: int = 60) -> str:
+    if not scope_value:
+        return "none"
+    compact = " ".join(scope_value.split())
+    if len(compact) <= length:
+        return compact
+    return f"{compact[:length]}..."
 
 
 class AuthInfoMiddleware(Middleware):
@@ -96,10 +119,12 @@ class AuthInfoMiddleware(Middleware):
                             if token_str.startswith("ya29.")
                             else "jwt_or_unknown"
                         )
+                        token_hash = _hash_preview(token_str, 12)
                         logger.info(
-                            "[AUTH-DEBUG] bearer_token_type=%s token_len=%s",
+                            "[AUTH-DEBUG] bearer_token_type=%s token_len=%s token_hash=%s",
                             token_kind,
                             len(token_str),
+                            token_hash,
                         )
 
                     # For Google OAuth tokens (ya29.*), we need to verify them differently
@@ -280,12 +305,43 @@ class AuthInfoMiddleware(Middleware):
                                 )
                                 has_sub = bool(token_payload.get("sub"))
                                 keys_preview = ",".join(sorted(claim_keys))
+                                iss = _truncate(token_payload.get("iss"))
+                                aud = _truncate(
+                                    token_payload.get("aud")
+                                    if isinstance(token_payload.get("aud"), str)
+                                    else ",".join(
+                                        token_payload.get("aud", [])
+                                        if isinstance(token_payload.get("aud"), list)
+                                        else []
+                                    )
+                                )
+                                scope_val = token_payload.get("scope")
+                                email_val = token_payload.get("email") or token_payload.get(
+                                    "username"
+                                )
+                                sub_val = token_payload.get("sub")
+                                client_id_val = token_payload.get("client_id")
+                                exp_val = token_payload.get("exp")
+                                iat_val = token_payload.get("iat")
+                                nbf_val = token_payload.get("nbf")
                                 logger.info(
                                     "[AUTH-DEBUG] jwt_claims_count=%s email_present=%s sub_present=%s keys=%s",
                                     len(claim_keys),
                                     has_email,
                                     has_sub,
                                     keys_preview,
+                                )
+                                logger.info(
+                                    "[AUTH-DEBUG] jwt_claims iss=%s aud=%s client_id=%s exp=%s iat=%s nbf=%s scope_preview=%s email=%s sub_hash=%s",
+                                    iss,
+                                    aud,
+                                    _truncate(client_id_val),
+                                    exp_val or "none",
+                                    iat_val or "none",
+                                    nbf_val or "none",
+                                    _scope_preview(scope_val),
+                                    _mask_email(email_val),
+                                    _hash_preview(sub_val, 12),
                                 )
 
                             # Create an AccessToken-like object
