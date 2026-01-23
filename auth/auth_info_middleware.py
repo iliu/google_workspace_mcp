@@ -279,11 +279,13 @@ class AuthInfoMiddleware(Middleware):
                                     or token_payload.get("username")
                                 )
                                 has_sub = bool(token_payload.get("sub"))
+                                keys_preview = ",".join(sorted(claim_keys))
                                 logger.info(
-                                    "[AUTH-DEBUG] jwt_claims_count=%s email_present=%s sub_present=%s",
+                                    "[AUTH-DEBUG] jwt_claims_count=%s email_present=%s sub_present=%s keys=%s",
                                     len(claim_keys),
                                     has_email,
                                     has_sub,
+                                    keys_preview,
                                 )
 
                             # Create an AccessToken-like object
